@@ -1,4 +1,14 @@
 import './App.css'
+import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
+
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { DashboardPage } from './pages/DashboardPage'
+import { JobsPage } from './pages/JobsPage'
+import { LoginPage } from './pages/LoginPage'
+import { ProfilePage } from './pages/ProfilePage'
+import { RegisterCompanyPage } from './pages/RegisterCompanyPage'
+import { RegisterStudentPage } from './pages/RegisterStudentPage'
+import { ProtectedRoute } from './routes/ProtectedRoute'
 
 const popularSkills = [
   'Python',
@@ -19,7 +29,9 @@ const stats = [
   { label: 'Companies hiring', value: '480+' },
 ]
 
-function App() {
+function LandingPage() {
+  const { isAuthenticated, user } = useAuth()
+
   return (
     <div className="page-shell">
       <header className="topbar">
@@ -29,16 +41,33 @@ function App() {
         </div>
 
         <nav className="main-nav" aria-label="Main navigation">
-          <a href="#">Home</a>
-          <a href="#">Jobs</a>
-          <a href="#">Internships</a>
-          <a href="#">Companies</a>
-          <a href="#">Career Assistant</a>
+          <Link to="/">Home</Link>
+          <Link to="/jobs">Jobs</Link>
+          <Link to="/jobs">Internships</Link>
+          <Link to="/dashboard">Companies</Link>
+          <Link to="/dashboard">Career Assistant</Link>
         </nav>
 
         <div className="nav-actions">
-          <button className="secondary-btn" type="button">Log in</button>
-          <button className="primary-btn" type="button">Create account</button>
+          {isAuthenticated && user ? (
+            <>
+              <Link className="secondary-btn" to="/dashboard">
+                Dashboard
+              </Link>
+              <Link className="primary-btn" to="/dashboard">
+                {user.role}
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link className="secondary-btn" to="/login">
+                Log in
+              </Link>
+              <Link className="primary-btn" to="/register/student">
+                Create account
+              </Link>
+            </>
+          )}
         </div>
       </header>
 
@@ -53,8 +82,12 @@ function App() {
             </p>
 
             <div className="search-cta-row">
-              <button className="primary-btn" type="button">Search Jobs</button>
-              <button className="secondary-btn" type="button">Search Internships</button>
+              <Link className="primary-btn" to="/register/student">
+                Search Jobs
+              </Link>
+              <Link className="secondary-btn" to="/register/company">
+                Search Internships
+              </Link>
             </div>
 
             <div className="stats-grid" aria-label="Platform stats">
@@ -167,6 +200,33 @@ function App() {
         </section>
       </main>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/jobs" element={<JobsPage />} />
+          <Route path="/register/student" element={<RegisterStudentPage />} />
+          <Route path="/register/company" element={<RegisterCompanyPage />} />
+
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route element={<ProtectedRoute allowedRoles={['student']} />}>
+              <Route path="/profile" element={<ProfilePage />} />
+            </Route>
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+            <Route path="/admin" element={<DashboardPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 

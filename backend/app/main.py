@@ -1,6 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.routes.admin import router as admin_router
+from app.api.v1.routes.applications import router as applications_router
+from app.api.v1.routes.auth import router as auth_router
+from app.api.v1.routes.health import router as health_router
+from app.api.v1.routes.jobs import router as jobs_router
+from app.api.v1.routes.profile import router as profile_router
 from app.config.settings import settings
 
 app = FastAPI(
@@ -19,10 +25,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/api/v1/health")
-def health_check() -> dict[str, str]:
-    return {"status": "ok", "service": "careerbridge-api"}
+app.include_router(health_router)
+app.include_router(auth_router)
+app.include_router(profile_router)
+app.include_router(jobs_router)
+app.include_router(applications_router)
+app.include_router(admin_router)
 
 
 @app.get("/")
