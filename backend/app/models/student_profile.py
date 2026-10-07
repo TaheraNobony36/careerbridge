@@ -1,29 +1,33 @@
 import uuid
-from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import JSON, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database.base import Base
+from app.database.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
-class StudentProfile(Base):
+class StudentProfile(TimestampMixin, Base):
     __tablename__ = "student_profiles"
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_student_profiles_user_id"),
+        Index("ix_student_profiles_user_id", "user_id", unique=True),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        unique=True,
         nullable=False,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        unique=True,
         nullable=False,
-        index=True,
     )
     full_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     headline: Mapped[str | None] = mapped_column(String(160), nullable=True)
@@ -35,16 +39,4 @@ class StudentProfile(Base):
     portfolio_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     linkedin_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     github_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
-
     user: Mapped["User"] = relationship("User", back_populates="student_profile")

@@ -10,16 +10,17 @@ from app.api.v1.routes.profile import router as profile_router
 from app.config.settings import settings
 
 app = FastAPI(
-    title="Internship & Job Finder",
+    title=settings.app_name,
     version="0.1.0",
     description="CareerBridge platform API",
+    debug=settings.debug,
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:5173"],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

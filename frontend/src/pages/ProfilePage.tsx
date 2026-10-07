@@ -38,15 +38,11 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />
-  }
-
-  if (user.role !== 'student') {
-    return <Navigate to="/dashboard" replace />
-  }
-
   useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'student') {
+      return
+    }
+
     const loadProfile = async () => {
       try {
         const { data } = await getStudentProfile()
@@ -72,7 +68,15 @@ export function ProfilePage() {
     }
 
     void loadProfile()
-  }, [])
+  }, [isAuthenticated, user?.role])
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (user.role !== 'student') {
+    return <Navigate to="/dashboard" replace />
+  }
 
   const handleChange = (field: keyof ProfileFormState, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
@@ -114,7 +118,7 @@ export function ProfilePage() {
         github_url: data.github_url ?? '',
       })
       setSuccess('Profile saved successfully.')
-    } catch (err) {
+    } catch {
       setError('Something went wrong while saving your profile. Please try again.')
     }
   }

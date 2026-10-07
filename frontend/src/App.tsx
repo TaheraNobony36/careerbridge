@@ -203,6 +203,38 @@ function LandingPage() {
   )
 }
 
+function RegisterPage() {
+  return (
+    <div className="auth-shell">
+      <section className="auth-card">
+        <div className="auth-header">
+          <span className="eyebrow">CareerBridge</span>
+          <h1>Create an account</h1>
+        </div>
+        <div className="auth-links">
+          <Link to="/register/student">Student account</Link>
+          <Link to="/register/company">Company account</Link>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function CompaniesPage() {
+  return (
+    <main className="page-shell">
+      <section className="content-section">
+        <div className="section-heading">
+          <span className="eyebrow">CareerBridge</span>
+          <h1>Companies</h1>
+          <p>Company listings are not available yet.</p>
+          <Link className="primary-btn" to="/">Return home</Link>
+        </div>
+      </section>
+    </main>
+  )
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -211,6 +243,9 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/jobs" element={<JobsPage />} />
+          <Route path="/internships" element={<JobsPage />} />
+          <Route path="/companies" element={<CompaniesPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/register/student" element={<RegisterStudentPage />} />
           <Route path="/register/company" element={<RegisterCompanyPage />} />
 
@@ -218,6 +253,10 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route element={<ProtectedRoute allowedRoles={['student']} />}>
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/student" element={<DashboardPage />} />
+            </Route>
+            <Route element={<ProtectedRoute allowedRoles={['company']} />}>
+              <Route path="/company" element={<DashboardPage />} />
             </Route>
           </Route>
 

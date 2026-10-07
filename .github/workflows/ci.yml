@@ -8,6 +8,22 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: careerbridge
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d careerbridge"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres@localhost:5432/careerbridge
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -18,10 +34,25 @@ jobs:
           cd backend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Generate test-only secret keys
+        run: |
+          echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+          echo "JWT_SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+          echo "JWT_REFRESH_SECRET=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+      - name: Verify migration upgrade and downgrade
+        run: |
+          cd backend
+          alembic upgrade head
+          alembic downgrade -1
+          alembic upgrade head
       - name: Run tests
         run: |
           cd backend
           pytest -q
+      - name: Verify FastAPI startup and documentation
+        run: |
+          cd backend
+          python -c "from fastapi.testclient import TestClient; from app.main import app; client = TestClient(app); assert client.get('/').status_code == 200; assert client.get('/docs').status_code == 200; assert client.get('/redoc').status_code == 200"
 
   frontend:
     runs-on: ubuntu-latest
@@ -33,9 +64,9 @@ jobs:
       - name: Install dependencies
         working-directory: ./frontend
         run: npm install
-      - name: Build app
-        working-directory: ./frontend
-        run: npm run build
       - name: Lint app
         working-directory: ./frontend
         run: npm run lint
+      - name: Build app
+        working-directory: ./frontend
+        run: npm run build

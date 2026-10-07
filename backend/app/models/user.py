@@ -1,12 +1,12 @@
 import uuid
-from datetime import datetime, timezone
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, CheckConstraint, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
-from app.database.base import Base
+from app.database.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.application import Application
@@ -14,31 +14,42 @@ if TYPE_CHECKING:
     from app.models.student_profile import StudentProfile
 
 
-class User(Base):
+class UserRole(StrEnum):
+    STUDENT = "student"
+    COMPANY = "company"
+    ADMIN = "admin"
+    SUPER_ADMIN = "super_admin"
+
+
+class User(TimestampMixin, Base):
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("email", name="uq_users_email"),
+        CheckConstraint(
+            "role IN ('student', 'company', 'admin', 'super_admin')",
+            name="ck_users_role",
+        ),
+        CheckConstraint("email = lower(email)", name="ck_users_email_lowercase"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        unique=True,
         nullable=False,
     )
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[str] = mapped_column(String(50), default="student", nullable=False)
+    role: Mapped[str] = mapped_column(
+        String(50),
+        default=UserRole.STUDENT.value,
+        nullable=False,
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
+
+    @validates("email")
+    def normalize_email(self, _attribute_name: str, value: str) -> str:
+        return value.strip().lower()
 
     student_profile: Mapped["StudentProfile | None"] = relationship(
         "StudentProfile",

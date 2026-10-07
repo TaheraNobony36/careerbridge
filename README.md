@@ -1,121 +1,89 @@
 # CareerBridge
 
-CareerBridge is a production-oriented internship and job platform for students, companies, recruiters, and administrators. This repository contains a monorepo scaffold for a fast API backend and a Vite React frontend intended for deployment on Render.
+CareerBridge is a monorepo with a FastAPI backend and a React, TypeScript, and Vite frontend. The repository already contains database-backed routes and user-facing screens; this guide covers local setup without introducing new product features.
 
-## Stack
+## Prerequisites
 
-- Frontend: React + TypeScript + Vite + Tailwind-ready structure
-- Backend: Python 3.12 + FastAPI + SQLAlchemy + Pydantic
-- Database: PostgreSQL
-- Cache/background jobs: Redis
-- Storage: S3-compatible abstraction layer design
-- Deployment: Docker + Render
+- Python 3.12+
+- Node.js 20+
+- PostgreSQL 16, or Docker Compose for a local PostgreSQL instance
 
-## Repository Layout
+## Backend setup
 
-- backend/app: FastAPI application packages
-- backend/tests: backend tests
-- frontend: React frontend
-- docs: project documentation
-- .github/workflows: CI/CD workflow files
+From the repository root, create the environment file and a virtual environment:
 
-## Getting Started
-
-### 1. Create environment file
-
-Copy the example environment file from the repo root:
-
-```
+```sh
 cp .env.example .env
-```
-
-### 2. Backend setup
-
-```
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+## Frontend setup
+
+```sh
+cd frontend
+cp .env.example .env
+npm install
+```
+
+## Environment variables
+
+Backend settings are loaded from the repository-root `.env`. Set `DATABASE_URL` for your PostgreSQL instance and use local-only values for `SECRET_KEY`, `JWT_SECRET_KEY`, and `JWT_REFRESH_SECRET`. For Compose, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` must match the credentials in `DATABASE_URL`. `CORS_ORIGINS` accepts a comma-separated list of frontend origins. `JWT_SECRET` remains supported as an alias for `JWT_SECRET_KEY`.
+
+The frontend reads `VITE_API_BASE_URL` from `frontend/.env`; the default is `http://localhost:8000/api/v1`. Never put production secrets in either environment file or frontend variables.
+
+## Running locally
+
+Start PostgreSQL from the repository root after setting the connection values in `.env`:
+
+```sh
+docker compose up -d postgres
+```
+
+Then run the backend from `backend/`:
+
+```sh
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 3. Frontend setup
+Run the frontend from `frontend/` in a second terminal:
 
-```
-cd frontend
-npm install
+```sh
 npm run dev -- --host 0.0.0.0
 ```
 
-### 4. Docker compose
+The API root is `/`, the health check is `/api/v1/health`, and the OpenAPI interfaces are `/docs` and `/redoc`.
 
-```
+To run the API and PostgreSQL with Docker Compose:
+
+```sh
 docker compose up --build
 ```
 
-## Phase 1 foundation status
+## Running tests
 
-The project has been organized into a clean starter structure for the planned CareerBridge architecture:
+With PostgreSQL available and `DATABASE_URL` set, run migrations and backend tests:
 
-- backend/app/api for versioned route modules
-- backend/app/config for environment settings
-- backend/app/database for database session initialization
-- backend/app/core, models, schemas, services, repositories, middleware, and utils for future business logic
-- frontend/src with prepared component, page, hook, service, context, type, utility, and route directories
-
-This keeps the repo ready for the next steps in authentication, profiles, and job management without replacing the existing scaffold.
-
-## Phase 2 database foundation status
-
-The backend now includes a working PostgreSQL + SQLAlchemy foundation and the first Alembic migration:
-
-- SQLAlchemy engine and session configuration in [backend/app/database/session.py](backend/app/database/session.py)
-- Declarative base in [backend/app/database/base.py](backend/app/database/base.py)
-- Initial user model in [backend/app/models/user.py](backend/app/models/user.py)
-- Alembic config in [backend/alembic.ini](backend/alembic.ini)
-- Initial migration in [backend/alembic/versions/20261003120000_initial_user_model.py](backend/alembic/versions/20261003120000_initial_user_model.py)
-
-To apply the migration locally:
-
-```
+```sh
 cd backend
+alembic upgrade head
+pytest -q
+```
+
+Exercise a migration rollback only against a disposable or test database:
+
+```sh
+cd backend
+alembic downgrade -1
 alembic upgrade head
 ```
 
-## Phase 3 authentication and RBAC status
+Run frontend lint and production build:
 
-The backend now includes the first auth layer for students, companies, and admins:
-
-- JWT access and refresh token generation in [backend/app/core/security.py](backend/app/core/security.py)
-- Student and company registration endpoints in [backend/app/api/v1/routes/auth.py](backend/app/api/v1/routes/auth.py)
-- Login, logout, refresh, and current-user endpoints in [backend/app/api/v1/routes/auth.py](backend/app/api/v1/routes/auth.py)
-- Admin-only user listing in [backend/app/api/v1/routes/admin.py](backend/app/api/v1/routes/admin.py)
-- Public auth schemas in [backend/app/schemas/auth.py](backend/app/schemas/auth.py)
-
-Example auth endpoints:
-
+```sh
+cd frontend
+npm run lint
+npm run build
 ```
-POST /api/v1/auth/register/student
-POST /api/v1/auth/register/company
-POST /api/v1/auth/login
-POST /api/v1/auth/refresh
-POST /api/v1/auth/logout
-GET /api/v1/auth/me
-GET /api/v1/admin/users
-```
-
-## Quality Gates
-
-- Backend tests: `pytest`
-- Frontend build: `npm run build`
-- Linting: `ruff` and `npm run lint`
-
-## Important Notes
-
-- Do not commit real secrets.
-- Keep uploaded files in object storage rather than local app storage.
-- Use the modular architecture defined in the project brief.
-
-## Roadmap
-
-The project is planned in staged phases from authentication and profiles through job search, skill matching, applications, CV generation, payments, chat, and admin systems.

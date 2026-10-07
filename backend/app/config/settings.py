@@ -1,26 +1,28 @@
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_name: str = "careerbridge"
     environment: str = "development"
-    database_url: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/careerbridge"
-    secret_key: str = "change-me-in-production"
-    jwt_secret: str = "change-me-in-production"
-    jwt_refresh_secret: str = "change-me-in-production"
-    redis_url: str = "redis://localhost:6379/0"
+    debug: bool = False
+    database_url: str
+    secret_key: str
+    jwt_secret: str = Field(
+        validation_alias=AliasChoices("JWT_SECRET_KEY", "JWT_SECRET"),
+    )
+    jwt_refresh_secret: str
+    cors_origins: str = ""
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"
-    ai_provider: str = "openai"
-    ai_api_key: str = ""
-    ai_model: str = "gpt-4o-mini"
-    payment_provider: str = "stripe"
-    payment_api_key: str = ""
-    payment_secret: str = ""
-    email_provider: str = "sendgrid"
-    email_api_key: str = ""
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        configured_origins = [origin.strip() for origin in self.cors_origins.split(",")]
+        configured_origins = [origin for origin in configured_origins if origin]
+        return configured_origins or [self.frontend_url]
 
     model_config = SettingsConfigDict(
         env_file=str(Path(__file__).resolve().parents[3] / ".env"),

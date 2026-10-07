@@ -38,17 +38,25 @@ The Phase 1 foundation introduces a cleaner structure for later work:
 
 ## Database foundation
 
-Phase 2 adds the SQLAlchemy + PostgreSQL setup used for the core user model and migrations.
+PostgreSQL is the supported application database. Configure `DATABASE_URL` in the repository-root `.env`; for local Compose use matching `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_PORT` values. Keep these local development credentials out of production deployments.
 
-- [backend/app/database/base.py](backend/app/database/base.py): common DeclarativeBase
-- [backend/app/models/user.py](backend/app/models/user.py): initial user table
-- [backend/alembic.ini](backend/alembic.ini): Alembic config
-- [backend/alembic/versions/20261003120000_initial_user_model.py](backend/alembic/versions/20261003120000_initial_user_model.py): first migration
-
-To initialize the database schema:
+Start the PostgreSQL service from the repository root:
 
 ```
-cd backend
+docker compose up -d postgres
+```
+
+Alembic reads `DATABASE_URL` from the same backend settings as the application. From `backend/`, apply the schema or inspect the current revision:
+
+```
+alembic upgrade head
+alembic current
+```
+
+The migrations create the existing schema, including the initial `users` table and later tables already present in the repository. To verify a rollback, use only a disposable test database:
+
+```
+alembic downgrade -1
 alembic upgrade head
 ```
 
@@ -76,8 +84,8 @@ GET /api/v1/admin/users
 
 ```
 cd backend
-source .venv/bin/activate
-pytest
+alembic upgrade head
+pytest -q
 ```
 
 ```
