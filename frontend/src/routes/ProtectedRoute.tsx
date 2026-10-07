@@ -1,13 +1,18 @@
 import { Navigate, Outlet } from 'react-router-dom'
 
 import { useAuth } from '../context/AuthContext'
+import type { UserRole } from '../types/auth'
 
 interface ProtectedRouteProps {
-  allowedRoles?: Array<'student' | 'company' | 'admin'>
+  allowedRoles?: UserRole[]
 }
 
 export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, loading, user } = useAuth()
+
+  if (loading) {
+    return <div className="auth-shell" role="status">Restoring your session...</div>
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />

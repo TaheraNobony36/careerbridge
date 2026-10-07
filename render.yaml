@@ -1,24 +1,36 @@
+databases:
+  - name: careerbridge-db
+    databaseName: careerbridge
+    user: careerbridge
+    plan: free
+
 services:
   - type: web
     name: careerbridge-api
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && alembic upgrade head
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     rootDir: backend
     healthCheckPath: /api/v1/health
     envVars:
+      - key: ENVIRONMENT
+        value: production
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: careerbridge-db
+          property: connectionString
       - key: SECRET_KEY
-        sync: false
+        generateValue: true
       - key: JWT_SECRET_KEY
-        sync: false
+        generateValue: true
       - key: JWT_REFRESH_SECRET
-        sync: false
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "15"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "7"
       - key: CORS_ORIGINS
-        sync: false
-      - key: FRONTEND_URL
-        sync: false
-      - key: BACKEND_URL
         sync: false

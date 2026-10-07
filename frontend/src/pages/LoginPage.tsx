@@ -5,7 +5,8 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
 import { useAuth } from '../context/AuthContext'
-import { loginUser } from '../services/api'
+import { getApiErrorMessage, loginUser } from '../services/api'
+import { getRoleHomePath } from '../utils/auth'
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
@@ -13,7 +14,7 @@ const loginSchema = z.object({
 })
 
 export function LoginPage() {
-  const { login, isAuthenticated } = useAuth()
+  const { login, isAuthenticated, loading, user } = useAuth()
   const navigate = useNavigate()
   const [formError, setFormError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -23,7 +24,11 @@ export function LoginPage() {
   })
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={getRoleHomePath(user!.role)} replace />
+  }
+
+  if (loading) {
+    return <div className="auth-shell" role="status">Restoring your session...</div>
   }
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
@@ -33,13 +38,9 @@ export function LoginPage() {
     try {
       const response = await loginUser(values)
       login(response.data)
-      navigate('/dashboard', { replace: true })
+      navigate(getRoleHomePath(response.data.user.role), { replace: true })
     } catch (error: unknown) {
-      setFormError(
-        typeof error === 'object' && error !== null && 'response' in error
-          ? String((error as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? 'Invalid credentials')
-          : 'Unable to sign in right now.',
-      )
+      setFormError(getApiErrorMessage(error, 'Unable to sign in right now.'))
     } finally {
       setIsSubmitting(false)
     }

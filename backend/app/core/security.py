@@ -1,58 +1,71 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Annotated, Any
+from uuid import UUID, uuid4
 
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.config.settings import settings
 from app.database.session import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+
+def hash_password(password: str) -> str:
+    password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12))
+    return password_hash.decode("ascii")
+
+
+get_password_hash = hash_password
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("ascii"))
+    except (UnicodeEncodeError, ValueError):
+        return False
 
 
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
-
-def create_access_token(subject: str, role: str) -> str:
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+def create_access_token(
+    subject: str,
+    role: str | None = None,
+    expires_delta: timedelta | None = None,
+) -> str:
+    issued_at = datetime.now(timezone.utc)
+    expires_at = issued_at + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     payload: dict[str, Any] = {
         "sub": subject,
-        "role": role,
         "type": "access",
+        "jti": str(uuid4()),
         "exp": expires_at,
-        "iat": datetime.now(timezone.utc),
+        "iat": issued_at,
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
+    if role is not None:
+        payload["role"] = role
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def create_refresh_token(subject: str, role: str) -> str:
-    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    issued_at = datetime.now(timezone.utc)
+    expires_at = issued_at + timedelta(days=settings.refresh_token_expire_days)
     payload: dict[str, Any] = {
         "sub": subject,
         "role": role,
         "type": "refresh",
+        "jti": str(uuid4()),
         "exp": expires_at,
-        "iat": datetime.now(timezone.utc),
+        "iat": issued_at,
     }
-    return jwt.encode(payload, settings.jwt_refresh_secret, algorithm=ALGORITHM)
+    return jwt.encode(payload, settings.jwt_refresh_secret, algorithm=settings.jwt_algorithm)
 
 
 def decode_token(token: str, secret_key: str) -> dict[str, Any]:
     try:
-        payload = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, secret_key, algorithms=[settings.jwt_algorithm])
     except JWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -63,8 +76,8 @@ def decode_token(token: str, secret_key: str) -> dict[str, Any]:
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security),
-    db: Session = Depends(get_db),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> User:
     if credentials is None:
         raise HTTPException(
@@ -75,14 +88,23 @@ def get_current_user(
 
     payload = decode_token(credentials.credentials, settings.jwt_secret)
     user_id = payload.get("sub")
-    if user_id is None:
+    if payload.get("type") != "access" or not isinstance(user_id, str):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = db.query(User).filter(User.id == user_id).first()
+    try:
+        parsed_user_id = UUID(user_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+    user = db.get(User, parsed_user_id)
     if user is None or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -92,9 +114,13 @@ def get_current_user(
     return user
 
 
-def require_roles(*allowed_roles: str):
-    def dependency(user: User = Depends(get_current_user)) -> User:
-        if user.role not in allowed_roles:
+def require_roles(*allowed_roles: str | UserRole):
+    allowed_role_values = {
+        role.value if isinstance(role, UserRole) else role for role in allowed_roles
+    }
+
+    def dependency(user: Annotated[User, Depends(get_current_user)]) -> User:
+        if user.role not in allowed_role_values:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to access this resource.",

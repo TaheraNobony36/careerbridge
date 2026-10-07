@@ -5,17 +5,23 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
 import { useAuth } from '../context/AuthContext'
-import { registerCompany } from '../services/api'
+import { getApiErrorMessage, registerCompany } from '../services/api'
+import { getRoleHomePath } from '../utils/auth'
 
 const companySchema = z.object({
   email: z.string().email('Enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string()
+    .min(12, 'Password must be at least 12 characters')
+    .max(72, 'Password must be at most 72 characters')
+    .regex(/[a-z]/, 'Password must include a lowercase letter')
+    .regex(/[A-Z]/, 'Password must include an uppercase letter')
+    .regex(/[0-9]/, 'Password must include a number'),
   full_name: z.string().min(2, 'Contact name is required'),
   company_name: z.string().min(2, 'Company name is required'),
 })
 
 export function RegisterCompanyPage() {
-  const { login, isAuthenticated } = useAuth()
+  const { login, isAuthenticated, loading, user } = useAuth()
   const navigate = useNavigate()
   const [formError, setFormError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -25,7 +31,11 @@ export function RegisterCompanyPage() {
   })
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={getRoleHomePath(user!.role)} replace />
+  }
+
+  if (loading) {
+    return <div className="auth-shell" role="status">Restoring your session...</div>
   }
 
   const onSubmit = async (values: z.infer<typeof companySchema>) => {
@@ -35,13 +45,9 @@ export function RegisterCompanyPage() {
     try {
       const response = await registerCompany(values)
       login(response.data)
-      navigate('/dashboard', { replace: true })
+      navigate(getRoleHomePath(response.data.user.role), { replace: true })
     } catch (error: unknown) {
-      setFormError(
-        typeof error === 'object' && error !== null && 'response' in error
-          ? String((error as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? 'Unable to register company.')
-          : 'Unable to register company right now.',
-      )
+      setFormError(getApiErrorMessage(error, 'Unable to register company right now.'))
     } finally {
       setIsSubmitting(false)
     }

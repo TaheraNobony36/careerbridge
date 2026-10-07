@@ -14,6 +14,9 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("JWT_SECRET_KEY", "JWT_SECRET"),
     )
     jwt_refresh_secret: str
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = Field(default=15, ge=1, le=60)
+    refresh_token_expire_days: int = Field(default=7, ge=1, le=30)
     cors_origins: str = ""
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"

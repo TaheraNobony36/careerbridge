@@ -62,23 +62,24 @@ alembic upgrade head
 
 ## Authentication and RBAC
 
-Phase 3 adds the first auth layer for the platform:
+Authentication uses bcrypt password hashes, short-lived access JWTs, and rotating refresh JWTs. Configure `SECRET_KEY`, `JWT_SECRET_KEY`, `JWT_REFRESH_SECRET`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, and `REFRESH_TOKEN_EXPIRE_DAYS` in the root `.env`. New passwords must be at least 12 characters and include uppercase, lowercase, and numeric characters.
 
-- [backend/app/core/security.py](backend/app/core/security.py): password hashing, JWT creation, token decoding, and role enforcement
-- [backend/app/api/v1/routes/auth.py](backend/app/api/v1/routes/auth.py): registration, login, logout, refresh, and current-user routes
-- [backend/app/api/v1/routes/admin.py](backend/app/api/v1/routes/admin.py): admin-only guard for management APIs
-
-Main auth flows:
+Available endpoints:
 
 ```
-POST /api/v1/auth/register/student
-POST /api/v1/auth/register/company
+POST /api/v1/auth/register              role: student or company
+POST /api/v1/auth/register/student       compatibility endpoint
+POST /api/v1/auth/register/company      compatibility endpoint
 POST /api/v1/auth/login
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
-GET /api/v1/auth/me
-GET /api/v1/admin/users
+GET  /api/v1/auth/me
+GET  /api/v1/admin/users
 ```
+
+Refresh tokens are stored in the browser only as an HttpOnly cookie; PostgreSQL stores their SHA-256 fingerprints and revocation timestamps. Access tokens remain in frontend memory. Logout revokes the refresh session, while already issued access tokens expire naturally. The cookie is Secure and SameSite=None outside development/test environments.
+
+Public registration cannot create `admin` or `super_admin` users. To bootstrap an admin, apply migrations and run `python -m app.cli.create_admin` from `backend/`; the command prompts for an email and password without echoing or storing the password in source.
 
 ## Testing
 

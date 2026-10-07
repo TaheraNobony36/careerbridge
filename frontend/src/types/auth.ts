@@ -1,4 +1,4 @@
-export type UserRole = 'student' | 'company' | 'admin'
+export type UserRole = 'student' | 'company' | 'admin' | 'super_admin'
 
 export interface AuthUser {
   id: string
@@ -10,5 +10,4 @@ export interface AuthUser {
 export interface AuthState {
   user: AuthUser
   access_token: string
-  refresh_token: string
 }
