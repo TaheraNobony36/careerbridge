@@ -62,6 +62,52 @@ Register with `POST /api/v1/auth/register` using an email, a password of at leas
 
 Login and registration return a 15-minute access token by default and safe user data. The refresh token is stored as a SHA-256 fingerprint in PostgreSQL and sent only as an HttpOnly cookie (7-day lifetime by default). The frontend keeps the access token in memory and uses the cookie to restore and refresh a session. Logout revokes the refresh session; already issued stateless access tokens can remain valid until their configured expiry.
 
+## Student profiles
+
+Authenticated students can manage their own profile with the existing student-only endpoints. `GET /api/v1/profile/me` returns the profile or `404` when one has not been created. `PUT /api/v1/profile/me` creates the profile on its first call and updates it on later calls. Company and admin roles are not authorized for these endpoints.
+
+The request accepts optional `full_name`, `headline`, `bio`, `university`, `degree_program`, `graduation_year`, `skills`, `location`, `portfolio_url`, `linkedin_url`, and `github_url` fields. Text lengths, graduation year (1900-2100), skill count/length, and absolute HTTP(S) URLs are validated. Example:
+
+```http
+PUT /api/v1/profile/me
+Authorization: Bearer <access-token>
+Content-Type: application/json
+```
+
+```json
+{
+	"full_name": "Ada Lovelace",
+	"headline": "Aspiring software engineer",
+	"university": "University of London",
+	"degree_program": "Mathematics",
+	"graduation_year": 2027,
+	"skills": ["Python", "SQL"],
+	"portfolio_url": "https://example.com/ada"
+}
+```
+
+The successful response includes the saved fields and its `id` and owning `user_id`:
+
+```json
+{
+	"id": "7d9e44e7-0d74-427d-a872-9497914ac93b",
+	"user_id": "6acdcfa1-2bb2-4e54-bdaa-1a1c7fb8c45e",
+	"full_name": "Ada Lovelace",
+	"headline": "Aspiring software engineer",
+	"bio": null,
+	"university": "University of London",
+	"degree_program": "Mathematics",
+	"graduation_year": 2027,
+	"skills": ["Python", "SQL"],
+	"location": null,
+	"portfolio_url": "https://example.com/ada",
+	"linkedin_url": null,
+	"github_url": null
+}
+```
+
+The existing `student_profiles` table is extended by migration `20261010120000`; the new nullable column preserves all current profile rows. Run `alembic upgrade head` from `backend/` to apply it.
+
 To run the API and PostgreSQL with Docker Compose:
 
 ```sh
@@ -90,6 +136,7 @@ Run frontend lint and production build:
 
 ```sh
 cd frontend
+npm test
 npm run lint
 npm run build
 ```

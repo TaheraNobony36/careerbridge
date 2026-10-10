@@ -33,6 +33,7 @@ class StudentProfile(TimestampMixin, Base):
     headline: Mapped[str | None] = mapped_column(String(160), nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     university: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    degree_program: Mapped[str | None] = mapped_column(String(255), nullable=True)
     graduation_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     skills: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     location: Mapped[str | None] = mapped_column(String(150), nullable=True)

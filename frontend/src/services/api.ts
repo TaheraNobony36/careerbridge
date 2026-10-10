@@ -107,16 +107,17 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
 export const getStudentProfile = () => api.get('/profile/me')
 
 export const saveStudentProfile = (payload: {
-  full_name?: string
-  headline?: string
-  bio?: string
-  university?: string
+  full_name?: string | null
+  headline?: string | null
+  bio?: string | null
+  university?: string | null
+  degree_program?: string | null
   graduation_year?: number | null
   skills?: string[]
-  location?: string
-  portfolio_url?: string
-  linkedin_url?: string
-  github_url?: string
+  location?: string | null
+  portfolio_url?: string | null
+  linkedin_url?: string | null
+  github_url?: string | null
 }) => api.put('/profile/me', payload)
 
 export const getJobs = () => api.get('/jobs')
